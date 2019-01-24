@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"log"
 
 	"github.com/d2g/dhcp4"
 )
