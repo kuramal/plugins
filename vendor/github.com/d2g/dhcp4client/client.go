@@ -20,6 +20,7 @@ const (
 type Client struct {
 	hardwareAddr  net.HardwareAddr //The HardwareAddr to send in the request.
 	ignoreServers []net.IP         //List of Servers to Ignore requests from.
+	allowServers  []net.IP         //List of Servers to allow requests from.
 	timeout       time.Duration    //Time before we timeout.
 	broadcast     bool             //Set the Bcast flag in BOOTP Flags
 	connection    ConnectionInt    //The Connection Method to use
@@ -121,6 +122,13 @@ func Connection(conn ConnectionInt) func(*Client) error {
 	}
 }
 
+func AllowServers(ass []net.IP) func(*Client) error {
+	return func(c *Client) error {
+		c.allowServers = ass
+		return nil
+	}
+}
+
 func GenerateXID(g func([]byte)) func(*Client) error {
 	return func(c *Client) error {
 		c.generateXID = g
@@ -210,6 +218,7 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 	start := time.Now()
 
 	for {
+		allow := false
 		timeout := c.timeout - time.Since(start)
 		if timeout < 0 {
 			return dhcp4.Packet{}, &TimeoutError{Timeout: c.timeout}
@@ -226,6 +235,22 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 
 		acknowledgementPacket := dhcp4.Packet(readBuffer)
 		acknowledgementPacketOptions := acknowledgementPacket.ParseOptions()
+
+		for _, allowServer := range c.allowServers {
+			if source.Equal(allowServer) {
+				allow = true
+				break
+			}
+
+			if acknowledgementPacket.SIAddr().Equal(allowServer) {
+				allow = true
+				break
+			}
+		}
+
+		if !allow {
+			continue
+		}
 
 		// Ignore Servers in my Ignore list
 		for _, ignoreServer := range c.ignoreServers {
