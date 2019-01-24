@@ -239,16 +239,19 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 		for _, allowServer := range c.allowServers {
 			if source.Equal(allowServer) {
 				allow = true
+				log.Printf(" sourceip find allow server ip %v\n", allowServer.To4().String())
 				break
 			}
 
 			if acknowledgementPacket.SIAddr().Equal(allowServer) {
+				log.Printf(" Siaddr find allow server ip %v\n", allowServer.To4().String())
 				allow = true
 				break
 			}
 		}
 
 		if !allow {
+			log.Printf("  this server ip %v is not allowd\n", source.To4().String())
 			continue
 		}
 
