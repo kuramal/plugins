@@ -44,6 +44,18 @@ type DHCP struct {
 	hostNetnsPrefix string
 }
 
+type Net struct {
+	Name       string      `json:"name"`
+	CNIVersion string      `json:"cniVersion"`
+	IPAM       *IPAMConfig `json:"ipam"`
+}
+
+type IPAMConfig struct {
+	Name   string
+	Type   string         `json:"type"`
+	Routes []*types.Route `json:"routes"`
+}
+
 func newDHCP() *DHCP {
 	return &DHCP{
 		leases: make(map[string]*DHCPLease),
@@ -54,15 +66,34 @@ func generateClientID(containerID string, netName string, ifName string) string 
 	return containerID + "/" + netName + "/" + ifName
 }
 
+//TODO zhangjie  need envArgs string params
+func LoadIPAMConfig(bytes []byte) (*IPAMConfig, string, error) {
+	n := Net{}
+	if err := json.Unmarshal(bytes, &n); err != nil {
+		return nil, "", err
+	}
+
+	if n.IPAM == nil {
+		return nil, "", fmt.Errorf("IPAM config missing 'ipam' key")
+	}
+
+	return n.IPAM, n.CNIVersion, nil
+}
+
 // Allocate acquires an IP from a DHCP server for a specified container.
 // The acquired lease will be maintained until Release() is called.
 func (d *DHCP) Allocate(args *skel.CmdArgs, result *current.Result) error {
-	conf := types.NetConf{}
+	/*conf := types.NetConf{}
 	if err := json.Unmarshal(args.StdinData, &conf); err != nil {
 		return fmt.Errorf("error parsing netconf: %v", err)
 	}
+	*/
+	conf, name, err := LoadIPAMConfig(args.StdinData)
+	if err != nil {
+		return fmt.Errorf("error parsing IpamConfig: %v\n", err)
+	}
 
-	clientID := generateClientID(args.ContainerID, conf.Name, args.IfName)
+	clientID := generateClientID(args.ContainerID, name, args.IfName)
 	hostNetns := d.hostNetnsPrefix + args.Netns
 	l, err := AcquireLease(clientID, hostNetns, args.IfName)
 	if err != nil {
@@ -82,7 +113,14 @@ func (d *DHCP) Allocate(args *skel.CmdArgs, result *current.Result) error {
 		Address: *ipn,
 		Gateway: l.Gateway(),
 	}}
-	result.Routes = l.Routes()
+
+	// zhangjie if config no Routes , use dhcp server option routers
+	if len(conf.Routes) == 0 {
+		result.Routes = l.Routes()
+	} else {
+		// if config has set routers, use config routers
+		result.Routes = conf.Routes
+	}
 
 	return nil
 }
