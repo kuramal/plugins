@@ -192,7 +192,7 @@ func (c *Client) GetOffer(discoverPacket *dhcp4.Packet) (dhcp4.Packet, error) {
 				break
 			}
 
-			if acknowledgementPacket.SIAddr().Equal(allowServer) {
+			if offerPacket.SIAddr().Equal(allowServer) {
 				allow = true
 				break
 			}
