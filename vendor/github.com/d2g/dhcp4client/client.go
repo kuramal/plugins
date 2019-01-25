@@ -168,6 +168,7 @@ func (c *Client) GetOffer(discoverPacket *dhcp4.Packet) (dhcp4.Packet, error) {
 	start := time.Now()
 
 	for {
+		allow := false
 		timeout := c.timeout - time.Since(start)
 		if timeout < 0 {
 			return dhcp4.Packet{}, &TimeoutError{Timeout: c.timeout}
@@ -185,6 +186,18 @@ func (c *Client) GetOffer(discoverPacket *dhcp4.Packet) (dhcp4.Packet, error) {
 		offerPacket := dhcp4.Packet(readBuffer)
 		offerPacketOptions := offerPacket.ParseOptions()
 
+		for _, allowServer := range c.allowServers {
+			if source.Equal(allowServer) {
+				allow = true
+				break
+			}
+
+			if acknowledgementPacket.SIAddr().Equal(allowServer) {
+				allow = true
+				break
+			}
+		}
+
 		// Ignore Servers in my Ignore list
 		for _, ignoreServer := range c.ignoreServers {
 			if source.Equal(ignoreServer) {
@@ -199,7 +212,12 @@ func (c *Client) GetOffer(discoverPacket *dhcp4.Packet) (dhcp4.Packet, error) {
 		if len(offerPacketOptions[dhcp4.OptionDHCPMessageType]) < 1 || dhcp4.MessageType(offerPacketOptions[dhcp4.OptionDHCPMessageType][0]) != dhcp4.Offer || !bytes.Equal(discoverPacket.XId(), offerPacket.XId()) {
 			continue
 		}
-
+		if !allow {
+			log.Printf("  get offer this server ip %v is not allowd\n", source.To4().String())
+			continue
+		} else {
+			log.Printf("  get offer find allow server ip %v\n", source.To4().String())
+		}
 		return offerPacket, nil
 	}
 
@@ -265,10 +283,10 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 		}
 
 		if !allow {
-			log.Printf("  this server ip %v is not allowd\n", source.To4().String())
+			log.Printf("  get acknowledge this server ip %v is not allowd\n", source.To4().String())
 			continue
 		} else {
-			log.Printf("  find allow server ip %v\n", source.To4().String())
+			log.Printf("  get acknowledge find allow server ip %v\n", source.To4().String())
 		}
 
 		return acknowledgementPacket, nil
