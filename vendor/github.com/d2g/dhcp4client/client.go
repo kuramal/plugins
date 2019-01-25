@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"math/rand"
 	"net"
 	"sync"
 	"syscall"
 	"time"
-	"log"
 
 	"github.com/d2g/dhcp4"
 )
@@ -249,8 +249,6 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 			}
 		}
 
-
-
 		// Ignore Servers in my Ignore list
 		for _, ignoreServer := range c.ignoreServers {
 			if source.Equal(ignoreServer) {
@@ -269,10 +267,10 @@ func (c *Client) GetAcknowledgement(requestPacket *dhcp4.Packet) (dhcp4.Packet, 
 		if !allow {
 			log.Printf("  this server ip %v is not allowd\n", source.To4().String())
 			continue
-		}else{
+		} else {
 			log.Printf("  find allow server ip %v\n", source.To4().String())
 		}
-		
+
 		return acknowledgementPacket, nil
 	}
 }

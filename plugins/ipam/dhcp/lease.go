@@ -359,7 +359,7 @@ func newDHCPClient(link netlink.Link, clientID string) (*dhcp4client.Client, err
 		return nil, err
 	}
 	ass := make([]net.IP, 0, 2)
-	ass = append(ass, net.ParseIP("172.20.17.123").To4())
+	ass = append(ass, net.ParseIP("172.20.17.123").To4(), net.ParseIP("172.20.17.124").To4())
 	return dhcp4client.New(
 		dhcp4client.HardwareAddr(link.Attrs().HardwareAddr),
 		dhcp4client.Timeout(5*time.Second),
