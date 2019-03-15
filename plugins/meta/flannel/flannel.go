@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -183,6 +184,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
+	Logger.Printf("info %++v", n.Capabilities)
+	Logger.Printf("stdinData %++v", args.StdinData)
+
 	fenv, err := loadFlannelSubnetEnv(n.SubnetFile)
 	if err != nil {
 		return err
@@ -262,6 +266,20 @@ func cmdDel(args *skel.CmdArgs) error {
 	}
 
 	return invoke.DelegateDel(n.Type, netconfBytes)
+}
+
+var Logger *log.Logger
+
+func init() {
+	logPath := "/var/log/cni"
+	if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
+		log.Fatalf("create logpath %v error %v", logPath, err)
+	}
+	logfile, err := os.OpenFile(filepath.Join(logPath, "flannel.log"), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatalf("open log file error")
+	}
+	Logger = log.New(logfile, "", log.Ldate|log.Llongfile|log.Ltime)
 }
 
 func main() {
