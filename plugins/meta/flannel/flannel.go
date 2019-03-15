@@ -42,10 +42,10 @@ const (
 )
 
 type FloaingIPEntry struct {
-	IP      net.IP    `json:"Ip"`
-	SubNet  net.IPNet `json:"Subnet"`
-	Gateway net.IP    `json:"Gateway"`
-	Vlan    string    `json:"Vlan,omitempty"`
+	IP      net.IP      `json:"Ip"`
+	SubNet  types.IPNet `json:"Subnet"`
+	Gateway net.IP      `json:"Gateway"`
+	Vlan    string      `json:"Vlan,omitempty"`
 }
 
 type NetConf struct {
