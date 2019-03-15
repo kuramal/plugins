@@ -41,11 +41,21 @@ const (
 	defaultDataDir    = "/var/lib/cni/flannel"
 )
 
+type FloaingIPEntry struct {
+	IP      net.IP    `json:"Ip"`
+	SubNet  net.IPNet `json:"Subnet"`
+	Gateway net.IP    `json:"Gateway"`
+	Vlan    string    `json:"Vlan,omitempty"`
+}
+
 type NetConf struct {
 	types.NetConf
-	SubnetFile string                 `json:"subnetFile"`
-	DataDir    string                 `json:"dataDir"`
-	Delegate   map[string]interface{} `json:"delegate"`
+	SubnetFile    string                 `json:"subnetFile"`
+	DataDir       string                 `json:"dataDir"`
+	Delegate      map[string]interface{} `json:"delegate"`
+	RuntimeConfig struct {
+		FloatingIP FloaingIPEntry `json:"floatingip,omitempty"`
+	} `json:"runtimeConfig,omitempty"`
 }
 
 type subnetEnv struct {
@@ -184,8 +194,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	Logger.Printf("info %++v", n.Capabilities)
-	Logger.Printf("stdinData %++v", args.StdinData)
+	Logger.Printf("data %++v", *n)
 
 	fenv, err := loadFlannelSubnetEnv(n.SubnetFile)
 	if err != nil {
