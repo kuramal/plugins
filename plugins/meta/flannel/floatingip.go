@@ -70,8 +70,9 @@ func operatorNoVlan(n *NetConf, nns string) error {
 	}
 	ips := make([]*current.IPConfig, 0, 1)
 	ipc := &current.IPConfig{
-		Address: net.IPNet{IP: n.RuntimeConfig.FloatingIP.IP, Mask: n.RuntimeConfig.FloatingIP.SubNet.Mask},
-		Gateway: n.RuntimeConfig.FloatingIP.Gateway,
+		Address:   net.IPNet{IP: n.RuntimeConfig.FloatingIP.IP, Mask: n.RuntimeConfig.FloatingIP.SubNet.Mask},
+		Gateway:   n.RuntimeConfig.FloatingIP.Gateway,
+		Interface: current.Int(2),
 	}
 
 	result := &current.Result{
@@ -120,21 +121,22 @@ func configureIface(ifName string, res *current.Result) error {
 		return fmt.Errorf("failed to set %q UP: %v", ifName, err)
 	}
 
-	for _, ipc := range res.IPs {
-		if ipc.Interface == nil {
-			continue
-		}
-		intIdx := *ipc.Interface
-		if intIdx < 0 || intIdx >= len(res.Interfaces) || res.Interfaces[intIdx].Name != ifName {
-			// IP address is for a different interface
-			return fmt.Errorf("failed to add IP addr %v to %q: invalid interface index", ipc, ifName)
-		}
+	if len(res.IPs) != 1 {
+		return fmt.Errorf("len of result.Ips must 1")
+	}
+	ipc := res.IPs[0]
+	if ipc.Interface == nil {
+		return nil
+	}
+	intIdx := *ipc.Interface
+	if intIdx < 0 || intIdx >= len(res.Interfaces) || res.Interfaces[intIdx].Name != ifName {
+		// IP address is for a different interface
+		return fmt.Errorf("failed to add IP addr %v to %q: invalid interface index", ipc, ifName)
+	}
 
-		addr := &netlink.Addr{IPNet: &ipc.Address, Label: ""}
-		if err = netlink.AddrAdd(link, addr); err != nil {
-			return fmt.Errorf("failed to add IP addr %v to %q: %v", ipc, ifName, err)
-		}
-
+	addr := &netlink.Addr{IPNet: &ipc.Address, Label: ""}
+	if err = netlink.AddrAdd(link, addr); err != nil {
+		return fmt.Errorf("failed to add IP addr %v to %q: %v", ipc, ifName, err)
 	}
 
 	// set route
