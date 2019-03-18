@@ -208,7 +208,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	Logger.Printf("get data %++v\n", *n)
+	Logger.Printf("get data %++v\n", n.RuntimeConfig.FloatingIP)
 
 	if err := cmdAddOperatorFloatingIP(n, args); err != nil {
 		return err

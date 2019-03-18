@@ -21,6 +21,7 @@ import (
 	"syscall"
 
 	"github.com/containernetworking/cni/pkg/skel"
+	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -77,9 +78,20 @@ func operatorNoVlan(n *NetConf, nns string) error {
 		Interface: current.Int(2),
 	}
 
+	troutes := make([]*types.Route, 0, 3)
+	for _, v := range n.RuntimeConfig.FloatingIP.Routes {
+		troutes = append(troutes, &types.Route{
+			Dst: net.IPNet{
+				IP:   v.Dst.IP,
+				Mask: v.Dst.Mask,
+			},
+			GW: v.Gw,
+		})
+	}
 	result := &current.Result{
 		Interfaces: []*current.Interface{brInterface, hostInterface, containerInterface},
 		IPs:        append(ips, ipc),
+		Routes:     troutes,
 	}
 	// Configure the container hardware address and IP address(es)
 	if err := netns.Do(func(_ ns.NetNS) error {
@@ -144,7 +156,7 @@ func configureIface(ifName string, res *current.Result) error {
 	// set route
 	for _, r := range res.Routes {
 		gw := r.GW
-		if err = ip.AddRoute(&r.Dst, gw, link); err != nil {
+		if err = ip.Addute(&r.Dst, gw, link); err != nil {
 			// we skip over duplicate routes as we assume the first one wins
 			if !os.IsExist(err) {
 				return fmt.Errorf("failed to add route '%v via %v dev %v': %v", r.Dst, gw, ifName, err)
