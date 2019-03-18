@@ -56,7 +56,7 @@ type FloaingIPEntry struct {
 	// Flag stand whether use Floatingip feature
 	Flag bool `json:"Flag"`
 
-	Routes []*Route `json:"routes"`
+	Routes string `json:"routes"`
 }
 
 type NetConf struct {

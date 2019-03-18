@@ -14,6 +14,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -54,6 +55,15 @@ func operatorVlan(n *NetConf, vlan int) error {
 	return nil
 }
 
+func routeStr2Routes(rs string) ([]*types.Route, error) {
+	r := make([]*types.Route, 0, 3)
+	err := json.Unmarshal([]byte(rs), r)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
 func operatorNoVlan(n *NetConf, nns string) error {
 
 	br, brInterface, err := setupBridge(n.NoVlanBrName)
@@ -78,15 +88,11 @@ func operatorNoVlan(n *NetConf, nns string) error {
 		Interface: current.Int(2),
 	}
 
-	troutes := make([]*types.Route, 0, 3)
-	for _, v := range n.RuntimeConfig.FloatingIP.Routes {
-		troutes = append(troutes, &types.Route{
-			Dst: net.IPNet{
-				IP:   v.Dst.IP,
-				Mask: v.Dst.Mask,
-			},
-		})
+	troutes, err := routeStr2Routes(n.RuntimeConfig.FloatingIP.Routes)
+	if err != nil {
+		return err
 	}
+
 	result := &current.Result{
 		Interfaces: []*current.Interface{brInterface, hostInterface, containerInterface},
 		IPs:        append(ips, ipc),
