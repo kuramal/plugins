@@ -57,7 +57,7 @@ func operatorVlan(n *NetConf, vlan int) error {
 
 func routeStr2Routes(rs string) ([]*types.Route, error) {
 	r := make([]*types.Route, 0, 3)
-	err := json.Unmarshal([]byte(rs), r)
+	err := json.Unmarshal([]byte(rs), &r)
 	if err != nil {
 		return nil, err
 	}
