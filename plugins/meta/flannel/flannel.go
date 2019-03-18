@@ -37,8 +37,10 @@ import (
 )
 
 const (
-	defaultSubnetFile = "/run/flannel/subnet.env"
-	defaultDataDir    = "/var/lib/cni/flannel"
+	defaultSubnetFile                   = "/run/flannel/subnet.env"
+	defaultDataDir                      = "/var/lib/cni/flannel"
+	defaultNoVlanBrName                 = "floating-novlan"
+	defaultContainerFloatingipInterface = "floating"
 )
 
 type FloaingIPEntry struct {
@@ -50,6 +52,7 @@ type FloaingIPEntry struct {
 
 type NetConf struct {
 	types.NetConf
+	NoVlanBrName  string                 `json:"bridge"`
 	SubnetFile    string                 `json:"subnetFile"`
 	DataDir       string                 `json:"dataDir"`
 	Delegate      map[string]interface{} `json:"delegate"`
@@ -85,8 +88,9 @@ func (se *subnetEnv) missing() string {
 
 func loadFlannelNetConf(bytes []byte) (*NetConf, error) {
 	n := &NetConf{
-		SubnetFile: defaultSubnetFile,
-		DataDir:    defaultDataDir,
+		SubnetFile:   defaultSubnetFile,
+		DataDir:      defaultDataDir,
+		NoVlanBrName: defaultNoVlanBrName,
 	}
 	if err := json.Unmarshal(bytes, n); err != nil {
 		return nil, fmt.Errorf("failed to load netconf: %v", err)
@@ -194,7 +198,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	Logger.Printf("data %++v", *n)
+	if err := cmdAddOperatorFloatingIP(n, args); err != nil {
+		return err
+	}
 
 	fenv, err := loadFlannelSubnetEnv(n.SubnetFile)
 	if err != nil {
