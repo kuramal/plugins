@@ -43,12 +43,21 @@ const (
 	defaultContainerFloatingipInterface = "floating"
 )
 
+// Route is route for ipallocation and ipam
+type Route struct {
+	Dst types.IPNet `json:"dst"`
+	Gw  net.IP      `json:"gw"`
+}
+
 type FloaingIPEntry struct {
 	IP      net.IP      `json:"Ip"`
 	SubNet  types.IPNet `json:"Subnet"`
 	Gateway net.IP      `json:"Gateway"`
 	Vlan    string      `json:"Vlan,omitempty"`
-	Flag    bool        `json:"Flag"`
+	// Flag stand whether use Floatingip feature
+	Flag bool `json:"Flag"`
+
+	Routes []*Route `json:"routes"`
 }
 
 type NetConf struct {
@@ -198,6 +207,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
+
+	Logger.Printf("get data %++v\n", *n)
 
 	if err := cmdAddOperatorFloatingIP(n, args); err != nil {
 		return err
