@@ -35,7 +35,9 @@ type gwInfo struct {
 }
 
 func cmdAddOperatorFloatingIP(n *NetConf, args *skel.CmdArgs) error {
-
+	if !n.RuntimeConfig.FloatingIP.Flag {
+		return nil
+	}
 	vlan, err := strconv.Atoi(n.RuntimeConfig.FloatingIP.Vlan)
 	if err != nil {
 		return err

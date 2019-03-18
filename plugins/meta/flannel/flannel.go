@@ -48,6 +48,7 @@ type FloaingIPEntry struct {
 	SubNet  types.IPNet `json:"Subnet"`
 	Gateway net.IP      `json:"Gateway"`
 	Vlan    string      `json:"Vlan,omitempty"`
+	Flag    bool        `json:"Flag"`
 }
 
 type NetConf struct {
