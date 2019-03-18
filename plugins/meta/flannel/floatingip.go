@@ -155,11 +155,10 @@ func configureIface(ifName string, res *current.Result) error {
 
 	// set route
 	for _, r := range res.Routes {
-		gw := r.GW
-		if err = ip.Addute(&r.Dst, gw, link); err != nil {
+		if err = ip.AddRoute(&r.Dst, r.GW, link); err != nil {
 			// we skip over duplicate routes as we assume the first one wins
 			if !os.IsExist(err) {
-				return fmt.Errorf("failed to add route '%v via %v dev %v': %v", r.Dst, gw, ifName, err)
+				return fmt.Errorf("failed to add route '%v via %v dev %v': %v", r.Dst, r.GW, ifName, err)
 			}
 		}
 	}
