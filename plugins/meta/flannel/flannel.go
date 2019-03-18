@@ -46,7 +46,6 @@ const (
 // Route is route for ipallocation and ipam
 type Route struct {
 	Dst types.IPNet `json:"dst"`
-	Gw  net.IP      `json:"gw"`
 }
 
 type FloaingIPEntry struct {

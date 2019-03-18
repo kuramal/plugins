@@ -85,7 +85,6 @@ func operatorNoVlan(n *NetConf, nns string) error {
 				IP:   v.Dst.IP,
 				Mask: v.Dst.Mask,
 			},
-			GW: v.Gw,
 		})
 	}
 	result := &current.Result{
