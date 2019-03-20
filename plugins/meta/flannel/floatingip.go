@@ -73,8 +73,10 @@ func operatorVlan(n *NetConf, vlan int, nns string) error {
 	// brctl addif br eth1
 	if vlaneth.Attrs().MasterIndex == 0 {
 		if err := netlink.LinkSetMaster(vlaneth, br); err != nil {
+			Logger.Printf("vlan %v set master %v error %V", vlaneth.Attrs().Name, br.Name, err)
 			return err
 		}
+		Logger.Printf("vlan %v set master %v successful", vlaneth.Attrs().Name, br.Name)
 	}
 
 	netns, err := ns.GetNS(nns)
@@ -212,7 +214,7 @@ func createVlan(master string, vlanid int) (*current.Interface, error) {
 		return nil, fmt.Errorf("failed to lookup master %q: %v", master, err)
 	}
 
-	ifName := fmt.Sprintf("%v_vlan_%v", master, vlanid)
+	ifName := fmt.Sprintf("%v_%v", master, vlanid)
 
 	v := &netlink.Vlan{
 		LinkAttrs: netlink.LinkAttrs{
@@ -236,6 +238,11 @@ func createVlan(master string, vlanid int) (*current.Interface, error) {
 	vlan := &current.Interface{
 		Name: ifName,
 		Mac:  contVlan.Attrs().HardwareAddr.String(),
+	}
+
+	err = netlink.LinkSetUp(contVlan)
+	if err != nil {
+		return nil, err
 	}
 
 	return vlan, nil
