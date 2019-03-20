@@ -84,5 +84,9 @@ flannel plugin will always set the following fields in the delegated plugin conf
 flannel plugin will set the following fields in the delegated plugin configuration if they are not present:
 * `ipMasq`: the inverse of `$FLANNEL_IPMASQ`
 * `mtu`: `$FLANNEL_MTU`
+* `novlanbrname`: 不是用vlan 的bridge name， 默认是 `floating` 
+* `novlaneth`: 不使用vlan 的使用的物理网卡 默认是 `eth1` 
+* `vlaneth`: 使用vlan 使用的物理网卡 默认是 `eth1` 
+
 
 Additionally, for the bridge plugin, `isGateway` will be set to `true`, if not present.
