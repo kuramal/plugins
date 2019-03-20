@@ -47,21 +47,88 @@ func cmdAddOperatorFloatingIP(n *NetConf, args *skel.CmdArgs) error {
 	if vlan == -1 {
 		return operatorNoVlan(n, args.Netns)
 	}
-	return operatorVlan(n, vlan)
+	return operatorVlan(n, vlan, args.Netns)
 }
 
-func operatorVlan(n *NetConf, vlan int) error {
+func operatorVlan(n *NetConf, vlan int, nns string) error {
+
+	_, err := createVlan(n.VlanEth, vlan)
+	if err != nil {
+		return err
+	}
+
+	brname := fmt.Sprintf("%v%v", defaultNoVlanBrName, vlan)
+	br, brInterface, err := setupBridge(brname)
+	if err != nil {
+		return err
+	}
+
+	// need to lookup vlaneth to ensure whether addif it`s br
+	vlaneth, err := netlink.LinkByName(n.VlanEth)
+	if err != nil {
+		return fmt.Errorf("failed to lookup %q: %v", n.NoVlanEth, err)
+	}
+
+	// novlaneth must need master
+	// brctl addif br eth1
+	if vlaneth.Attrs().MasterIndex == 0 {
+		if err := netlink.LinkSetMaster(vlaneth, br); err != nil {
+			return err
+		}
+	}
+
+	netns, err := ns.GetNS(nns)
+	if err != nil {
+		return fmt.Errorf("failed to open netns %q: %v", nns, err)
+	}
+	defer netns.Close()
+
+	hostInterface, containerInterface, err := setupVeth(netns, br, defaultContainerFloatingipInterface, 0, false)
+	if err != nil {
+		return err
+	}
+
+	ips := make([]*current.IPConfig, 0, 1)
+	ipc := &current.IPConfig{
+		Address:   net.IPNet{IP: n.RuntimeConfig.FloatingIP.IP, Mask: n.RuntimeConfig.FloatingIP.SubNet.Mask},
+		Gateway:   n.RuntimeConfig.FloatingIP.Gateway,
+		Interface: current.Int(2),
+	}
+
+	troutes, err := routeStr2Routes(n.RuntimeConfig.FloatingIP.Routes)
+	if err != nil {
+		return err
+	}
+
+	result := &current.Result{
+		Interfaces: []*current.Interface{brInterface, hostInterface, containerInterface},
+		IPs:        append(ips, ipc),
+		Routes:     troutes,
+	}
+	// Configure the container hardware address and IP address(es)
+	if err := netns.Do(func(_ ns.NetNS) error {
+		contVeth, err := net.InterfaceByName(defaultContainerFloatingipInterface)
+		if err != nil {
+			return err
+		}
+
+		// Add the IP to the interface
+		if err := configureIface(defaultContainerFloatingipInterface, result); err != nil {
+			return err
+		}
+
+		// Send a gratuitous arp
+		for _, ipc := range result.IPs {
+			if ipc.Version == "4" {
+				_ = arping.GratuitousArpOverIface(ipc.Address.IP, *contVeth)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
 
 	return nil
-}
-
-func routeStr2Routes(rs string) ([]*types.Route, error) {
-	r := make([]*types.Route, 0, 3)
-	err := json.Unmarshal([]byte(rs), &r)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
 }
 
 func operatorNoVlan(n *NetConf, nns string) error {
@@ -69,6 +136,20 @@ func operatorNoVlan(n *NetConf, nns string) error {
 	br, brInterface, err := setupBridge(n.NoVlanBrName)
 	if err != nil {
 		return err
+	}
+
+	// need to lookup novlaneth to ensure whether addif it`s br
+	novlaneth, err := netlink.LinkByName(n.NoVlanEth)
+	if err != nil {
+		return fmt.Errorf("failed to lookup %q: %v", n.NoVlanEth, err)
+	}
+
+	// novlaneth must need master
+	// brctl addif br eth1
+	if novlaneth.Attrs().MasterIndex == 0 {
+		if err := netlink.LinkSetMaster(novlaneth, br); err != nil {
+			return err
+		}
 	}
 
 	netns, err := ns.GetNS(nns)
@@ -122,6 +203,58 @@ func operatorNoVlan(n *NetConf, nns string) error {
 	}
 
 	return nil
+}
+
+func createVlan(master string, vlanid int) (*current.Interface, error) {
+
+	m, err := netlink.LinkByName(master)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup master %q: %v", master, err)
+	}
+
+	mtu := m.Attrs().MTU
+
+	tmpName, err := ip.RandomVethName()
+	if err != nil {
+		return nil, err
+	}
+
+	ifName := fmt.Sprintf("vlan%v_%v", vlanid, tmpName)
+
+	v := &netlink.Vlan{
+		LinkAttrs: netlink.LinkAttrs{
+			MTU:         mtu,
+			Name:        ifName,
+			ParentIndex: m.Attrs().Index,
+		},
+		VlanId: vlanid,
+	}
+
+	if err := netlink.LinkAdd(v); err != nil && err != syscall.EEXIST {
+		return nil, fmt.Errorf("failed to create vlan: %v", err)
+	}
+
+	// Re-fetch interface to get all properties/attributes
+	contVlan, err := netlink.LinkByName(ifName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refetch vlan %q: %v", ifName, err)
+	}
+
+	vlan := &current.Interface{
+		Name: ifName,
+		Mac:  contVlan.Attrs().HardwareAddr.String(),
+	}
+
+	return vlan, nil
+}
+
+func routeStr2Routes(rs string) ([]*types.Route, error) {
+	r := make([]*types.Route, 0, 3)
+	err := json.Unmarshal([]byte(rs), &r)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // ConfigureIface takes the result of IPAM plugin and
@@ -224,6 +357,7 @@ func setupBridge(brname string) (*netlink.Bridge, *current.Interface, error) {
 }
 
 func ensureBridge(brName string, mtu int, promiscMode bool) (*netlink.Bridge, error) {
+
 	br := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
 			Name: brName,

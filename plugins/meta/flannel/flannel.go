@@ -27,6 +27,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -37,10 +38,14 @@ import (
 )
 
 const (
-	defaultSubnetFile                   = "/run/flannel/subnet.env"
-	defaultDataDir                      = "/var/lib/cni/flannel"
-	defaultNoVlanBrName                 = "floating-novlan"
-	defaultContainerFloatingipInterface = "floating"
+	defaultSubnetFile = "/run/flannel/subnet.env"
+	defaultDataDir    = "/var/lib/cni/flannel"
+
+	defaultNoVlanEth = "eth1"
+	defaultVlanEth   = "eth1"
+
+	defaultNoVlanBrName                 = "floating"
+	defaultContainerFloatingipInterface = "eth1"
 )
 
 // Route is route for ipallocation and ipam
@@ -61,7 +66,9 @@ type FloaingIPEntry struct {
 
 type NetConf struct {
 	types.NetConf
-	NoVlanBrName  string                 `json:"bridge"`
+	NoVlanBrName  string                 `json:"novlanbrname"`
+	NoVlanEth     string                 `json:"novlaneth"`
+	VlanEth       string                 `json:"vlaneth"`
 	SubnetFile    string                 `json:"subnetFile"`
 	DataDir       string                 `json:"dataDir"`
 	Delegate      map[string]interface{} `json:"delegate"`
@@ -100,6 +107,8 @@ func loadFlannelNetConf(bytes []byte) (*NetConf, error) {
 		SubnetFile:   defaultSubnetFile,
 		DataDir:      defaultDataDir,
 		NoVlanBrName: defaultNoVlanBrName,
+		NoVlanEth:    defaultNoVlanEth,
+		VlanEth:      defaultVlanEth,
 	}
 	if err := json.Unmarshal(bytes, n); err != nil {
 		return nil, fmt.Errorf("failed to load netconf: %v", err)
@@ -297,6 +306,11 @@ func cmdDel(args *skel.CmdArgs) error {
 var Logger *log.Logger
 
 func init() {
+	// this ensures that main runs only on main thread (thread group leader).
+	// since namespace ops (unshare, setns) are done for a single thread, we
+	// must ensure that the goroutine does not jump from OS thread to thread
+	runtime.LockOSThread()
+
 	logPath := "/var/log/cni"
 	if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
 		log.Fatalf("create logpath %v error %v", logPath, err)
