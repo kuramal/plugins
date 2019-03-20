@@ -212,18 +212,11 @@ func createVlan(master string, vlanid int) (*current.Interface, error) {
 		return nil, fmt.Errorf("failed to lookup master %q: %v", master, err)
 	}
 
-	mtu := m.Attrs().MTU
-
-	tmpName, err := ip.RandomVethName()
-	if err != nil {
-		return nil, err
-	}
-
-	ifName := fmt.Sprintf("vlan%v_%v", vlanid, tmpName)
+	ifName := fmt.Sprintf("%v_vlan_%v", master, vlanid)
 
 	v := &netlink.Vlan{
 		LinkAttrs: netlink.LinkAttrs{
-			MTU:         mtu,
+			MTU:         m.Attrs().MTU,
 			Name:        ifName,
 			ParentIndex: m.Attrs().Index,
 		},
@@ -231,7 +224,7 @@ func createVlan(master string, vlanid int) (*current.Interface, error) {
 	}
 
 	if err := netlink.LinkAdd(v); err != nil && err != syscall.EEXIST {
-		return nil, fmt.Errorf("failed to create vlan: %v", err)
+		return nil, fmt.Errorf("failed to create vlan id %v: %v", vlanid, err)
 	}
 
 	// Re-fetch interface to get all properties/attributes
