@@ -52,7 +52,7 @@ func cmdAddOperatorFloatingIP(n *NetConf, args *skel.CmdArgs) error {
 
 func operatorVlan(n *NetConf, vlan int, nns string) error {
 
-	_, err := createVlan(n.VlanEth, vlan)
+	vlaninterface, err := createVlan(n.VlanEth, vlan)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func operatorVlan(n *NetConf, vlan int, nns string) error {
 	}
 
 	// need to lookup vlaneth to ensure whether addif it`s br
-	vlaneth, err := netlink.LinkByName(n.VlanEth)
+	vlaneth, err := netlink.LinkByName(vlaninterface.Name)
 	if err != nil {
 		return fmt.Errorf("failed to lookup %q: %v", n.NoVlanEth, err)
 	}
