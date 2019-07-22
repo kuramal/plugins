@@ -98,35 +98,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	Logger.Printf("get data %++v\n", n.RuntimeConfig.FloatingIP)
+	Logger.Printf("Get FloatingIP Data %++v\n", n.RuntimeConfig.FloatingIP)
 
 	return cmdAddOperatorFloatingIP(n, args)
 }
 
 func cmdDel(args *skel.CmdArgs) error {
 	return nil
-	/*
-		nc, err := loadFloatingNetConf(args.StdinData)
-		if err != nil {
-			return err
-		}
-
-		netconfBytes, err := consumeScratchNetConf(args.ContainerID, nc.DataDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				// Per spec should ignore error if resources are missing / already removed
-				return nil
-			}
-			return err
-		}
-
-		n := &types.NetConf{}
-		if err = json.Unmarshal(netconfBytes, n); err != nil {
-			return fmt.Errorf("failed to parse netconf: %v", err)
-		}
-
-		return invoke.DelegateDel(n.Type, netconfBytes)
-	*/
 }
 
 var Logger *log.Logger
@@ -141,7 +119,7 @@ func init() {
 	if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
 		log.Fatalf("create logpath %v error %v", logPath, err)
 	}
-	logfile, err := os.OpenFile(filepath.Join(logPath, "flannel.log"), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	logfile, err := os.OpenFile(filepath.Join(logPath, "floatingip.log"), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatalf("open log file error")
 	}

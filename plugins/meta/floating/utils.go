@@ -37,9 +37,20 @@ type gwInfo struct {
 }
 
 func cmdAddOperatorFloatingIP(n *NetConf, args *skel.CmdArgs) error {
+
 	if !n.RuntimeConfig.FloatingIP.Flag {
-		return nil
+		//return default data, when no FloatingIP flag
+		ips := make([]*current.IPConfig, 0, 1)
+		ipc := &current.IPConfig{
+			Version: "4",
+			Address: net.IPNet{IP: net.ParseIP("127.0.0.2")},
+		}
+
+		return types.PrintResult(&current.Result{
+			IPs: append(ips, ipc),
+		}, "0.3.0")
 	}
+
 	vlan, err := strconv.Atoi(n.RuntimeConfig.FloatingIP.Vlan)
 	if err != nil {
 		return err
