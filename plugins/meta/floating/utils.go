@@ -43,7 +43,7 @@ func cmdAddOperatorFloatingIP(n *NetConf, args *skel.CmdArgs) error {
 		ips := make([]*current.IPConfig, 0, 1)
 		ipc := &current.IPConfig{
 			Version: "4",
-			Address: net.IPNet{IP: net.ParseIP("127.0.0.2")},
+			Address: net.IPNet{IP: net.ParseIP("127.0.0.2"), Mask: net.IPMask(net.ParseIP("255.0.0.0"))},
 		}
 
 		return types.PrintResult(&current.Result{
